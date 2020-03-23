@@ -1,0 +1,154 @@
+logging_handler.py
+
+import logging
+import logging.config
+import datetime
+
+def start_file_logging(name):
+    """
+    Add a log handler to separate file for current thread
+    """
+    now = datetime.datetime.now()
+    nowDate = now.strftime('%Y%m%d')
+    log_file = './log/' + nowDate + '_{}.log'.format(name)
+    log_handler = logging.FileHandler(log_file)
+
+    log_handler.setLevel(logging.DEBUG)
+
+    formatter = logging.Formatter(
+        "[%(levelname)-8s]"
+        "[%(asctime)-15s]"
+        " - %(message)s",
+        '%Y-%m-%d %H:%M:%S')
+    log_handler.setFormatter(formatter)
+
+    # log_filter = ThreadLogFilter(name)
+    # log_handler.addFilter(log_filter)
+
+    logger = logging.getLogger()
+    logger.addHandler(log_handler)
+
+    return logger, log_handler
+
+
+def stop_file_logging(logger):
+    # Remove thread log handler from root logger1
+    logging.getLogger().removeHandler(logger)
+
+    # Close the thread log handler so that the lock on log file can be released
+    logger.close()
+
+
+def config_root_logger():
+    now = datetime.datetime.now()
+    nowDate = now.strftime('%Y%m%d')
+    log_file = './log/' + nowDate + '_main.log'
+
+    formatter = "[%(levelname)-8s]" \
+                "[%(asctime)-15s]" \
+                " - %(message)s"
+
+    logging.config.dictConfig({
+        'version': 1,
+        'formatters': {
+            'root_formatter': {
+                'format': formatter,
+                'datefmt': '%Y-%m-%d %H:%M:%S'
+            }
+        },
+        'handlers': {
+            'console': {
+                'level': 'INFO',
+                'class': 'logging.StreamHandler',
+                'formatter': 'root_formatter'
+            },
+            'log_file': {
+                'class': 'logging.FileHandler',
+                'level': 'DEBUG',
+                'filename': log_file,
+                'formatter': 'root_formatter',
+            }
+        },
+        'loggers': {
+            '': {
+                'handlers': [
+                    'console',
+                    'log_file',
+                ],
+                'level': 'DEBUG',
+                'propagate': True
+            }
+        }
+    })
+
+runner.py
+
+from multiprocessing import Process, current_process, Pool
+
+from logger_handler import *
+from worker import Worker
+import time
+import uuid
+
+queue = []
+
+
+def remove_item(result):
+    print('remove', result)
+    queue.remove(result)
+    print('queue len after', len(queue))
+
+
+if __name__ == '__main__':
+    print('start main process')
+
+    import logging
+
+    config_root_logger()
+    logger = logging.getLogger()
+    logger.warning('main')
+
+    logger1, handler = start_file_logging('main01')
+    logger1.warning("hello01")
+    stop_file_logging(handler)
+
+    logger2, handler2 = start_file_logging('thread01')
+    logger2.info("hello02")
+    stop_file_logging(handler2)
+
+    pool = Pool(processes=5)
+    while True:
+        if len(queue) >= 5:
+            time.sleep(0.5)
+            continue
+        # 급등주 가져오기
+        gen_uuid = uuid.uuid4()
+        print('queue len before', len(queue))
+        queue.append(gen_uuid)
+        worker = Worker(gen_uuid)
+        pool.apply_async(func=worker.run, callback=remove_item)
+
+
+worker.py
+
+import time
+import logging
+
+class Worker:
+    logger = logging.getLogger()
+    # logger.warning('main')
+
+    def __init__(self, item_id, std_price=0):
+        self.logger.warning('in worker')
+        self.item_id = item_id
+        self.std_price = std_price
+
+    def run(self):
+        # 1초마다? 안된다.  너무 타이트하다.  1.5초마다 보내자
+        print('check as', self.item_id)
+        # 뭘 체크해야 하지??
+        time.sleep(3)
+        print('check success')
+        print(self.item_id)
+        return self.item_id
+
