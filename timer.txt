@@ -1,0 +1,26 @@
+import time
+import random
+
+time_dict = {}
+
+
+def add_time():
+    while True:
+        time.sleep(random.randint(1, 10))
+        time_dict[time.time()] = (random.randint(1, 10), random.randint(1, 10))
+        print('hello')
+
+
+import threading
+
+t = threading.Thread(target=add_time)
+t.start()
+
+time.sleep(10)
+
+while True:
+    time.sleep(1)
+    # print(time_dict)
+    # newDict = dict(filter(lambda key: key > time.time() - 10, time_dict.keys()))
+    newDict = {key: value for (key, value) in time_dict.items() if key > time.time() - 10}
+    print(newDict)
