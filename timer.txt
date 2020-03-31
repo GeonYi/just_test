@@ -22,5 +22,9 @@ while True:
     time.sleep(1)
     # print(time_dict)
     # newDict = dict(filter(lambda key: key > time.time() - 10, time_dict.keys()))
-    newDict = {key: value for (key, value) in time_dict.items() if key > time.time() - 10}
+    newDict = [value for (key, value) in time_dict.items() if key > time.time() - 10]
+    # summary = {value for (key, value) in time_dict.items() if key > time.time() - 10}
+    sum_ = [sum(i) for i in zip(*newDict)]
     print(newDict)
+    print(sum_)
+
